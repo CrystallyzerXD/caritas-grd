@@ -40,10 +40,10 @@ public class AffectedPersonService {
                 .incident(incident)
                 .fullName(dto.getFullName())
                 .birthDate(dto.getBirthDate())
-                .dni(dto.getDni())
-                .phone(dto.getPhone())
-                .sex(dto.getSex())
-                .damageType(dto.getDamageType())
+                .dni(normalizeDni(dto.getDni()))
+                .phone(blankToNull(dto.getPhone()))
+                .sex(blankToNull(dto.getSex()))
+                .damageType(blankToNull(dto.getDamageType()))
                 .build();
 
         person = affectedPersonRepository.save(person);
@@ -57,10 +57,10 @@ public class AffectedPersonService {
 
         if (dto.getFullName() != null) person.setFullName(dto.getFullName());
         if (dto.getBirthDate() != null) person.setBirthDate(dto.getBirthDate());
-        if (dto.getDni() != null) person.setDni(dto.getDni());
-        if (dto.getPhone() != null) person.setPhone(dto.getPhone());
-        if (dto.getSex() != null) person.setSex(dto.getSex());
-        if (dto.getDamageType() != null) person.setDamageType(dto.getDamageType());
+        if (dto.getDni() != null) person.setDni(normalizeDni(dto.getDni()));
+        if (dto.getPhone() != null) person.setPhone(blankToNull(dto.getPhone()));
+        if (dto.getSex() != null) person.setSex(blankToNull(dto.getSex()));
+        if (dto.getDamageType() != null) person.setDamageType(blankToNull(dto.getDamageType()));
 
         person = affectedPersonRepository.save(person);
         return mapToDto(person);
@@ -77,6 +77,7 @@ public class AffectedPersonService {
         AffectedPersonDto dto = new AffectedPersonDto();
         dto.setId(person.getId());
         dto.setIncidentId(person.getIncident() != null ? person.getIncident().getId() : null);
+        dto.setFamilyId(person.getFamily() != null ? person.getFamily().getId() : null);
         dto.setFullName(person.getFullName());
         dto.setBirthDate(person.getBirthDate());
         dto.setDni(person.getDni());
@@ -85,5 +86,17 @@ public class AffectedPersonService {
         dto.setDamageType(person.getDamageType());
         dto.setCreatedAt(person.getCreatedAt());
         return dto;
+    }
+
+    private static String normalizeDni(String dni) {
+        if (dni == null) return null;
+        String t = dni.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    private static String blankToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 }

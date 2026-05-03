@@ -17,7 +17,6 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   Users,
-  Leaf,
   BarChart2,
   Calendar,
 } from 'lucide-react';
@@ -44,7 +43,7 @@ export function Reports() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDownload = async (type: 'incidents' | 'affected' | 'environmental') => {
+  const handleDownload = async (type: 'incidents' | 'affected') => {
     setDownloading(type);
     const params: Record<string, string> = {};
     if (dateFrom) params.dateFrom = dateFrom;
@@ -57,12 +56,9 @@ export function Reports() {
       if (type === 'incidents') {
         blob = await reportService.downloadIncidentsExcel(params);
         filename = `incidencias_${Date.now()}.xlsx`;
-      } else if (type === 'affected') {
+      } else {
         blob = await reportService.downloadAffectedPersonsExcel(params);
         filename = `personas_afectadas_${Date.now()}.xlsx`;
-      } else {
-        blob = await reportService.downloadEnvironmentalExcel(params);
-        filename = `ambiental_${Date.now()}.xlsx`;
       }
 
       downloadBlob(blob, filename);
@@ -181,27 +177,6 @@ export function Reports() {
             </Button>
           </div>
 
-          <div className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-green-50 rounded-lg flex items-center justify-center">
-                <Leaf className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm text-gray-800">Ambiental</p>
-                <p className="text-xs text-gray-500">Reporte de iniciativas ambientales</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              fullWidth
-              icon={<FileSpreadsheet className="h-4 w-4" />}
-              loading={downloading === 'environmental'}
-              onClick={() => handleDownload('environmental')}
-            >
-              Descargar Excel
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -214,7 +189,7 @@ export function Reports() {
               { label: 'Total Incidencias', value: stats.totalIncidents ?? 0, color: 'text-[#009850]', bg: 'bg-green-50' },
               { label: 'Incidencias Abiertas', value: stats.openIncidents ?? 0, color: 'text-amber-600', bg: 'bg-amber-50' },
               { label: 'Incidencias Cerradas', value: stats.closedIncidents ?? 0, color: 'text-green-600', bg: 'bg-green-50' },
-              { label: 'Iniciativas Ambientales', value: stats.totalEnvironmentalInitiatives ?? 0, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { label: 'Brigadistas activos', value: stats.activeBrigadistas ?? 0, color: 'text-blue-600', bg: 'bg-blue-50' },
             ].map((s) => (
               <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</p>

@@ -7,10 +7,24 @@ import type {
   IncidentFilters,
   AffectedPerson,
   AffectedPersonFormData,
+  AffectedFamily,
+  AffectedFamilyFormData,
   Evidence,
 } from '../types';
 
 const MIN_FILTER_YEAR = 1900;
+
+function toAffectedPersonPayload(data: AffectedPersonFormData): AffectedPersonFormData {
+  const dni = data.dni?.trim();
+  return {
+    fullName: data.fullName.trim(),
+    dni: dni && dni.length > 0 ? dni : undefined,
+    birthDate: data.birthDate?.trim() || undefined,
+    sex: data.sex?.trim() || undefined,
+    phone: data.phone?.trim() || undefined,
+    damageType: data.damageType?.trim() || undefined,
+  };
+}
 
 function normalizeFilterDate(value?: string): string | null {
   if (!value) return null;
@@ -67,7 +81,7 @@ export const incidentService = {
     await api.delete(`/api/incidents/${id}`);
   },
 
-  // Affected persons
+  // Standalone affected persons (no family)
   async getAffectedPersons(incidentId: number): Promise<AffectedPerson[]> {
     const response = await api.get<ApiResponse<AffectedPerson[]>>(
       `/api/incidents/${incidentId}/affected-persons`
@@ -75,15 +89,47 @@ export const incidentService = {
     return response.data.data;
   },
 
-  async addAffectedPerson(
-    incidentId: number,
-    data: AffectedPersonFormData
-  ): Promise<AffectedPerson> {
+  async addAffectedPerson(incidentId: number, data: AffectedPersonFormData): Promise<AffectedPerson> {
     const response = await api.post<ApiResponse<AffectedPerson>>(
       `/api/incidents/${incidentId}/affected-persons`,
-      data
+      toAffectedPersonPayload(data)
     );
     return response.data.data;
+  },
+
+  async deleteAffectedPerson(incidentId: number, personId: number): Promise<void> {
+    await api.delete(`/api/incidents/${incidentId}/affected-persons/${personId}`);
+  },
+
+  // Families
+  async getFamilies(incidentId: number): Promise<AffectedFamily[]> {
+    const response = await api.get<ApiResponse<AffectedFamily[]>>(
+      `/api/incidents/${incidentId}/families`
+    );
+    return response.data.data;
+  },
+
+  async createFamily(incidentId: number, data: AffectedFamilyFormData): Promise<AffectedFamily> {
+    const response = await api.post<ApiResponse<AffectedFamily>>(
+      `/api/incidents/${incidentId}/families`, data
+    );
+    return response.data.data;
+  },
+
+  async deleteFamily(incidentId: number, familyId: number): Promise<void> {
+    await api.delete(`/api/incidents/${incidentId}/families/${familyId}`);
+  },
+
+  async addFamilyMember(incidentId: number, familyId: number, data: AffectedPersonFormData): Promise<AffectedPerson> {
+    const response = await api.post<ApiResponse<AffectedPerson>>(
+      `/api/incidents/${incidentId}/families/${familyId}/members`,
+      toAffectedPersonPayload(data)
+    );
+    return response.data.data;
+  },
+
+  async removeFamilyMember(incidentId: number, familyId: number, personId: number): Promise<void> {
+    await api.delete(`/api/incidents/${incidentId}/families/${familyId}/members/${personId}`);
   },
 
   // Evidence

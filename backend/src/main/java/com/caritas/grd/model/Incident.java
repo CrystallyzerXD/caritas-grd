@@ -75,6 +75,39 @@ public class Incident {
     @Builder.Default
     private List<Evidence> evidences = new ArrayList<>();
 
+    @Column(name = "case_code", unique = true, length = 20)
+    private String caseCode;
+
+    @Column(name = "report_date")
+    private LocalDate reportDate;
+
+    @Column(name = "alert_source", columnDefinition = "TEXT")
+    private String alertSource;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "affectation_level", length = 20)
+    private AffectationLevel affectationLevel;
+
+    @Column(name = "affected_families")
+    private Integer affectedFamilies;
+
+    @Column(name = "vulnerable_groups", columnDefinition = "TEXT")
+    private String vulnerableGroups;
+
+    @Column(name = "urgent_needs", columnDefinition = "TEXT")
+    private String urgentNeeds;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "social_risk_assessment", length = 20)
+    private SocialRiskLevel socialRiskAssessment;
+
+    @Column(name = "articulated_institutions", columnDefinition = "TEXT")
+    private String articulatedInstitutions;
+
+    @OneToMany(mappedBy = "incident", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<IncidentReport> reports = new ArrayList<>();
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;

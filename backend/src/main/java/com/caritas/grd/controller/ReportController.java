@@ -28,7 +28,7 @@ public class ReportController {
             MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyRole('ADMIN','GRD_SPECIALIST','BRIGADISTA','AUTHORIZED_USER')")
+    @PreAuthorize("hasAnyRole('ADMIN','GRD_SPECIALIST','BRIGADISTA','COMITE_DONACIONES','AUTHORIZED_USER','JEFA_OGP')")
     public ResponseEntity<ApiResponse<DashboardDto>> getDashboard() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getDashboard()));
     }
@@ -61,17 +61,4 @@ public class ReportController {
                 .body(data);
     }
 
-    @GetMapping("/environmental/excel")
-    @PreAuthorize("hasAnyRole('ADMIN','GRD_SPECIALIST','AUTHORIZED_USER')")
-    public ResponseEntity<byte[]> exportEnvironmentalExcel() throws IOException {
-        byte[] data = reportService.generateEnvironmentalExcel();
-        String filename = "iniciativas_ambientales_" + LocalDateTime.now().format(FMT) + ".xlsx";
-
-        return ResponseEntity.ok()
-                .contentType(EXCEL_MEDIA_TYPE)
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + filename + "\"")
-                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(data.length))
-                .body(data);
-    }
 }

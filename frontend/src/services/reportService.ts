@@ -23,13 +23,6 @@ export const reportService = {
     return response.data;
   },
 
-  async downloadEnvironmentalExcel(params?: Record<string, string>): Promise<Blob> {
-    const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    const response = await api.get(`/api/reports/environmental/excel${query}`, {
-      responseType: 'blob',
-    });
-    return response.data;
-  },
 };
 
 export function downloadBlob(blob: Blob, filename: string) {

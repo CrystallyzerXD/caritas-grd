@@ -10,6 +10,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Year;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,8 +80,20 @@ public class IncidentService {
                 .district(district)
                 .incidentDate(dto.getIncidentDate())
                 .createdBy(createdBy)
+                .reportDate(dto.getReportDate())
+                .alertSource(dto.getAlertSource())
+                .affectationLevel(dto.getAffectationLevel())
+                .affectedFamilies(dto.getAffectedFamilies())
+                .vulnerableGroups(dto.getVulnerableGroups())
+                .urgentNeeds(dto.getUrgentNeeds())
+                .socialRiskAssessment(dto.getSocialRiskAssessment())
+                .articulatedInstitutions(dto.getArticulatedInstitutions())
                 .build();
 
+        incident = incidentRepository.save(incident);
+        // Generate caseCode after save so we have the ID
+        String caseCode = String.format("GRD-%d-%04d", Year.now().getValue(), incident.getId());
+        incident.setCaseCode(caseCode);
         incident = incidentRepository.save(incident);
         auditService.log("Incident", incident.getId(), "CREATE", createdByEmail, null,
                 "eventType=" + eventType.getName());
@@ -113,6 +126,14 @@ public class IncidentService {
             incident.setDistrict(district);
         }
         if (dto.getIncidentDate() != null) incident.setIncidentDate(dto.getIncidentDate());
+        if (dto.getReportDate() != null) incident.setReportDate(dto.getReportDate());
+        if (dto.getAlertSource() != null) incident.setAlertSource(dto.getAlertSource());
+        if (dto.getAffectationLevel() != null) incident.setAffectationLevel(dto.getAffectationLevel());
+        if (dto.getAffectedFamilies() != null) incident.setAffectedFamilies(dto.getAffectedFamilies());
+        if (dto.getVulnerableGroups() != null) incident.setVulnerableGroups(dto.getVulnerableGroups());
+        if (dto.getUrgentNeeds() != null) incident.setUrgentNeeds(dto.getUrgentNeeds());
+        if (dto.getSocialRiskAssessment() != null) incident.setSocialRiskAssessment(dto.getSocialRiskAssessment());
+        if (dto.getArticulatedInstitutions() != null) incident.setArticulatedInstitutions(dto.getArticulatedInstitutions());
         incident.setUpdatedBy(updatedBy);
 
         incident = incidentRepository.save(incident);
@@ -196,6 +217,16 @@ public class IncidentService {
                 ? incident.getEvidences().size() : 0);
         dto.setCreatedAt(incident.getCreatedAt());
         dto.setUpdatedAt(incident.getUpdatedAt());
+        dto.setCaseCode(incident.getCaseCode());
+        dto.setReportDate(incident.getReportDate());
+        dto.setAlertSource(incident.getAlertSource());
+        dto.setAffectationLevel(incident.getAffectationLevel());
+        dto.setAffectedFamilies(incident.getAffectedFamilies());
+        dto.setVulnerableGroups(incident.getVulnerableGroups());
+        dto.setUrgentNeeds(incident.getUrgentNeeds());
+        dto.setSocialRiskAssessment(incident.getSocialRiskAssessment());
+        dto.setArticulatedInstitutions(incident.getArticulatedInstitutions());
+        dto.setReportCount(incident.getReports() != null ? incident.getReports().size() : 0);
         return dto;
     }
 }

@@ -3,6 +3,7 @@ package com.caritas.grd.service;
 import com.caritas.grd.dto.report.DashboardDto;
 import com.caritas.grd.model.*;
 import com.caritas.grd.repository.*;
+import com.caritas.grd.model.CertificationStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -26,7 +27,9 @@ public class ReportService {
 
     private final IncidentRepository incidentRepository;
     private final AffectedPersonRepository affectedPersonRepository;
-    private final EnvironmentalInitiativeRepository environmentalRepository;
+    private final TrainingRepository trainingRepository;
+    private final TrainingParticipantRepository trainingParticipantRepository;
+    private final BrigadistaRepository brigadistaRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -49,14 +52,6 @@ public class ReportService {
                         LinkedHashMap::new
                 ));
 
-        Map<String, Long> byCategory = environmentalRepository.countByCategory().stream()
-                .collect(Collectors.toMap(
-                        row -> (String) row[0],
-                        row -> (Long) row[1],
-                        (a, b) -> a,
-                        LinkedHashMap::new
-                ));
-
         return DashboardDto.builder()
                 .totalIncidents(incidentRepository.count())
                 .openIncidents(incidentRepository.countByStatus(IncidentStatus.OPEN))
@@ -64,13 +59,13 @@ public class ReportService {
                 .closedIncidents(incidentRepository.countByStatus(IncidentStatus.CLOSED))
                 .followUpIncidents(incidentRepository.countByStatus(IncidentStatus.FOLLOW_UP))
                 .totalAffectedPersons(affectedPersonRepository.count())
-                .totalEnvironmentalInitiatives(environmentalRepository.count())
-                .plannedInitiatives(environmentalRepository.countByStatus(InitiativeStatus.PLANNED))
-                .inProgressInitiatives(environmentalRepository.countByStatus(InitiativeStatus.IN_PROGRESS))
-                .completedInitiatives(environmentalRepository.countByStatus(InitiativeStatus.COMPLETED))
                 .incidentsByEventType(byEventType)
                 .incidentsByDistrict(byDistrict)
-                .initiativesByCategory(byCategory)
+                .totalTrainings(trainingRepository.count())
+                .totalParticipants(trainingParticipantRepository.count())
+                .certifiedParticipants(trainingParticipantRepository.countByCertificationStatus(CertificationStatus.APROBADO))
+                .totalBrigadistas(brigadistaRepository.count())
+                .activeBrigadistas(brigadistaRepository.countByActiveTrue())
                 .build();
     }
 
@@ -209,74 +204,6 @@ public class ReportService {
             CellStyle summaryStyle = createSummaryStyle(workbook);
             Cell summaryCell = summaryRow.createCell(0);
             summaryCell.setCellValue("Total de registros: " + persons.size());
-            summaryCell.setCellStyle(summaryStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowNum + 1, rowNum + 1, 0, 7));
-
-            workbook.write(out);
-            return out.toByteArray();
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public byte[] generateEnvironmentalExcel() throws IOException {
-        List<EnvironmentalInitiative> initiatives = environmentalRepository.findAllForReport();
-
-        try (XSSFWorkbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            Sheet sheet = workbook.createSheet("Iniciativas Ambientales");
-            sheet.setColumnWidth(0, 4000);
-            sheet.setColumnWidth(1, 10000);
-            sheet.setColumnWidth(2, 8000);
-            sheet.setColumnWidth(3, 6000);
-            sheet.setColumnWidth(4, 4000);
-            sheet.setColumnWidth(5, 4000);
-            sheet.setColumnWidth(6, 4000);
-            sheet.setColumnWidth(7, 6000);
-
-            Row titleRow = sheet.createRow(0);
-            CellStyle titleStyle = createTitleStyle(workbook);
-            Cell titleCell = titleRow.createCell(0);
-            titleCell.setCellValue("REPORTE DE INICIATIVAS AMBIENTALES - CÁRITAS LIMA");
-            titleCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
-
-            Row headerRow = sheet.createRow(1);
-            CellStyle headerStyle = createHeaderStyle(workbook);
-            String[] headers = {"ID", "Título", "Responsable", "Categoría",
-                    "Estado", "Fecha Inicio", "Fecha Fin", "Distrito"};
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
-                cell.setCellStyle(headerStyle);
-            }
-
-            CellStyle dataStyle = createDataStyle(workbook);
-            CellStyle altStyle = createAltDataStyle(workbook);
-            int rowNum = 2;
-            for (EnvironmentalInitiative initiative : initiatives) {
-                Row row = sheet.createRow(rowNum);
-                CellStyle style = (rowNum % 2 == 0) ? dataStyle : altStyle;
-
-                createCell(row, 0, String.valueOf(initiative.getId()), style);
-                createCell(row, 1, initiative.getTitle(), style);
-                createCell(row, 2, nvl(initiative.getResponsible()), style);
-                createCell(row, 3, nvl(initiative.getCategory()), style);
-                createCell(row, 4, initiative.getStatus() != null
-                        ? initiative.getStatus().name() : "", style);
-                createCell(row, 5, initiative.getStartDate() != null
-                        ? initiative.getStartDate().format(DATE_FMT) : "", style);
-                createCell(row, 6, initiative.getEndDate() != null
-                        ? initiative.getEndDate().format(DATE_FMT) : "", style);
-                createCell(row, 7, initiative.getDistrict() != null
-                        ? initiative.getDistrict().getName() : "", style);
-                rowNum++;
-            }
-
-            Row summaryRow = sheet.createRow(rowNum + 1);
-            CellStyle summaryStyle = createSummaryStyle(workbook);
-            Cell summaryCell = summaryRow.createCell(0);
-            summaryCell.setCellValue("Total de registros: " + initiatives.size());
             summaryCell.setCellStyle(summaryStyle);
             sheet.addMergedRegion(new CellRangeAddress(rowNum + 1, rowNum + 1, 0, 7));
 

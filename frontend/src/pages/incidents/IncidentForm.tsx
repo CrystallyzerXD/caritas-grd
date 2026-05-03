@@ -9,16 +9,37 @@ import type { IncidentFormData, EventType, District } from '../../types';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Select } from '../../components/common/Select';
+import { Combobox } from '../../components/common/Combobox';
 import { PageSpinner } from '../../components/common/Spinner';
 import { VoiceTextarea } from '../../components/common/VoiceTextarea';
 import { MapPicker } from '../../components/common/MapPicker';
 
+// Status options — duplicates (CERRADO / EN_SEGUIMIENTO) removed per refinement notes.
+// Status is only shown when editing; on create it defaults to OPEN automatically.
 const STATUS_OPTIONS = [
-  { value: 'OPEN',        label: 'Abierto'      },
-  { value: 'IN_PROGRESS', label: 'En Proceso'   },
-  { value: 'CLOSED',      label: 'Cerrado'      },
-  { value: 'FOLLOW_UP',   label: 'Seguimiento'  },
+  { value: 'OPEN',          label: 'Abierto'       },
+  { value: 'IN_PROGRESS',   label: 'En Proceso'    },
+  { value: 'EN_EVALUACION', label: 'En Evaluación' },
+  { value: 'APROBADO',      label: 'Aprobado'      },
+  { value: 'ATENDIDO',      label: 'Atendido'      },
+  { value: 'FOLLOW_UP',     label: 'En Seguimiento'},
+  { value: 'CLOSED',        label: 'Cerrado'       },
 ];
+
+const AFFECTATION_OPTIONS = [
+  { value: 'LEVE',     label: 'Leve'     },
+  { value: 'MODERADO', label: 'Moderado' },
+  { value: 'SEVERO',   label: 'Severo'   },
+];
+
+const SOCIAL_RISK_OPTIONS = [
+  { value: 'BAJO',    label: 'Bajo'    },
+  { value: 'MEDIO',   label: 'Medio'   },
+  { value: 'ALTO',    label: 'Alto'    },
+  { value: 'CRITICO', label: 'Crítico' },
+];
+
+const today = new Date().toISOString().split('T')[0];
 
 export function IncidentForm() {
   const { id } = useParams<{ id: string }>();
@@ -26,9 +47,9 @@ export function IncidentForm() {
   const isEdit = !!id;
 
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [loading, setLoading] = useState(isEdit);
-  const [showMap, setShowMap] = useState(false);
+  const [districts,  setDistricts]  = useState<District[]>([]);
+  const [loading,    setLoading]    = useState(isEdit);
+  const [showMap,    setShowMap]    = useState(false);
 
   const {
     register,
@@ -40,14 +61,16 @@ export function IncidentForm() {
     formState: { errors, isSubmitting },
   } = useForm<IncidentFormData>({
     defaultValues: {
-      status: 'OPEN',
-      incidentDate: new Date().toISOString().split('T')[0],
+      status:       'OPEN',
+      incidentDate: today,
+      // reportDate auto-filled with today on create; brigadista fills details later
+      reportDate:   today,
     },
   });
 
   // Load catalogs
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
         const [et, dist] = await Promise.all([
           catalogService.getEventTypes(),
@@ -58,28 +81,32 @@ export function IncidentForm() {
       } catch {
         toast.error('Error al cargar los catálogos');
       }
-    };
-    load();
+    })();
   }, []);
 
-  // Load existing incident if editing
+  // Load existing incident when editing
   useEffect(() => {
     if (!isEdit) return;
-    const load = async () => {
+    (async () => {
       try {
         const inc = await incidentService.getById(Number(id));
         reset({
-          eventTypeId:  inc.eventTypeId,
-          description:  inc.description,
-          cause:        inc.cause,
-          losses:       inc.losses,
-          actionsTaken: inc.actionsTaken,
-          status:       inc.status,
-          incidentDate: inc.incidentDate?.split('T')[0] ?? '',
-          latitude:     inc.latitude,
-          longitude:    inc.longitude,
-          address:      inc.address,
-          districtId:   inc.districtId,
+          eventTypeId:           inc.eventTypeId,
+          description:           inc.description,
+          cause:                 inc.cause,
+          losses:                inc.losses,
+          status:                inc.status,
+          incidentDate:          inc.incidentDate?.split('T')[0] ?? '',
+          latitude:              inc.latitude,
+          longitude:             inc.longitude,
+          address:               inc.address,
+          districtId:            inc.districtId,
+          reportDate:            inc.reportDate?.split('T')[0] ?? '',
+          alertSource:           inc.alertSource,
+          affectationLevel:      inc.affectationLevel,
+          affectedFamilies:      inc.affectedFamilies,
+          urgentNeeds:           inc.urgentNeeds,
+          socialRiskAssessment:  inc.socialRiskAssessment,
         });
       } catch {
         toast.error('Error al cargar la incidencia');
@@ -87,17 +114,18 @@ export function IncidentForm() {
       } finally {
         setLoading(false);
       }
-    };
-    load();
+    })();
   }, [id, isEdit, reset, navigate]);
 
   const onSubmit = async (data: IncidentFormData) => {
-    const payload = {
+    const payload: IncidentFormData = {
       ...data,
       eventTypeId: Number(data.eventTypeId),
       districtId:  Number(data.districtId),
       latitude:    data.latitude  ? Number(data.latitude)  : undefined,
       longitude:   data.longitude ? Number(data.longitude) : undefined,
+      // On create, status is always OPEN regardless of form value
+      status:      isEdit ? data.status : 'OPEN',
     };
 
     try {
@@ -137,7 +165,7 @@ export function IncidentForm() {
           <p className="text-sm text-gray-500">
             {isEdit
               ? 'Modifique los datos de la incidencia'
-              : 'Complete el formulario para registrar una nueva incidencia'}
+              : 'Complete los datos iniciales. El brigadista complementará la información en campo.'}
           </p>
         </div>
       </div>
@@ -151,28 +179,44 @@ export function IncidentForm() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-            <Select
-              label="Tipo de Evento"
-              required
-              options={eventTypeOptions}
-              placeholder="Seleccionar tipo..."
-              error={errors.eventTypeId?.message}
-              {...register('eventTypeId', { required: 'Seleccione el tipo de evento' })}
+            {/* Tipo de evento — combobox (autocomplete + dropdown) */}
+            <Controller
+              name="eventTypeId"
+              control={control}
+              rules={{ required: 'Seleccione el tipo de evento' }}
+              render={({ field }) => (
+                <Combobox
+                  label="Tipo de Evento"
+                  required
+                  options={eventTypeOptions}
+                  value={field.value}
+                  onChange={(v) => field.onChange(v)}
+                  placeholder="Buscar tipo de evento..."
+                  error={errors.eventTypeId?.message}
+                />
+              )}
             />
-            <Select
-              label="Estado"
-              required
-              options={STATUS_OPTIONS}
-              error={errors.status?.message}
-              {...register('status', { required: 'Seleccione el estado' })}
-            />
+
+            {/* Fecha del evento — no future dates */}
             <Input
               label="Fecha del Evento"
               type="date"
               required
+              max={today}
               error={errors.incidentDate?.message}
               {...register('incidentDate', { required: 'La fecha es obligatoria' })}
             />
+
+            {/* Status — only shown when editing */}
+            {isEdit && (
+              <Select
+                label="Estado"
+                required
+                options={STATUS_OPTIONS}
+                error={errors.status?.message}
+                {...register('status', { required: 'Seleccione el estado' })}
+              />
+            )}
 
           </div>
         </div>
@@ -191,7 +235,6 @@ export function IncidentForm() {
           </div>
 
           <div className="space-y-4">
-
             {/* Descripción */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -215,9 +258,12 @@ export function IncidentForm() {
               )}
             </div>
 
-            {/* Causa */}
+            {/* Causa probable (renombrado) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Causa</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Causa probable
+                <span className="ml-1.5 text-xs font-normal text-gray-400">(opcional)</span>
+              </label>
               <Controller
                 name="cause"
                 control={control}
@@ -233,7 +279,10 @@ export function IncidentForm() {
 
             {/* Pérdidas */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pérdidas</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Pérdidas
+                <span className="ml-1.5 text-xs font-normal text-gray-400">(opcional)</span>
+              </label>
               <Controller
                 name="losses"
                 control={control}
@@ -247,23 +296,79 @@ export function IncidentForm() {
               />
             </div>
 
-            {/* Acciones Tomadas */}
-            <div>
+            {/* Acciones tomadas eliminado del formulario de registro.
+                Se completan en el informe final tras recibir data del brigadista. */}
+          </div>
+        </div>
+
+        {/* ── Evaluación del Caso ── */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <h2 className="font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">
+            Evaluación del Caso
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            {/* Fecha en que Cáritas tomó conocimiento — auto-filled, readonly on create */}
+            <Input
+              label="Fecha en que Cáritas tomó conocimiento"
+              type="date"
+              readOnly={!isEdit}
+              className={!isEdit ? 'bg-gray-50 text-gray-500 cursor-default' : ''}
+              {...register('reportDate')}
+            />
+
+            <Input
+              label="Fuente de alerta"
+              placeholder="Ej: Parroquia, INDECI, Municipio..."
+              {...register('alertSource')}
+            />
+
+            {/* Nivel de afectación → renombrado a "Evaluación del caso preliminar" */}
+            <Select
+              label="Evaluación del caso preliminar"
+              options={AFFECTATION_OPTIONS}
+              placeholder="Seleccionar nivel..."
+              {...register('affectationLevel')}
+            />
+
+            <Input
+              label="N° familias afectadas"
+              type="number"
+              placeholder="0"
+              min={0}
+              {...register('affectedFamilies', { valueAsNumber: true, min: { value: 0, message: 'No se permiten valores negativos' } })}
+              error={errors.affectedFamilies?.message}
+            />
+
+            {/* Evaluación de riesgo social — con ayuda contextual */}
+            <Select
+              label="Evaluación de riesgo social"
+              options={SOCIAL_RISK_OPTIONS}
+              placeholder="Seleccionar..."
+              hint="Clasifica el nivel de vulnerabilidad y riesgo de la familia afectada según condiciones socioeconómicas, entorno y capacidad de respuesta."
+              {...register('socialRiskAssessment')}
+            />
+
+            <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Acciones Tomadas
+                Necesidades urgentes
               </label>
               <Controller
-                name="actionsTaken"
+                name="urgentNeeds"
                 control={control}
                 render={({ field }) => (
                   <VoiceTextarea
                     {...field}
                     rows={2}
-                    placeholder="Ej: Se coordinó con la parroquia local para entrega de kit de emergencia…"
+                    placeholder="Ej: Alimentación, Abrigo, Salud..."
                   />
                 )}
               />
             </div>
+
+            {/* "Grupos vulnerables" e "Instituciones articuladas" eliminados.
+                Grupos vulnerables es variable de catálogo del sistema.
+                Instituciones articuladas eliminada per notas de refinamiento. */}
 
           </div>
         </div>
@@ -283,13 +388,22 @@ export function IncidentForm() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Distrito"
-              required
-              options={districtOptions}
-              placeholder="Seleccionar distrito..."
-              error={errors.districtId?.message}
-              {...register('districtId', { required: 'Seleccione el distrito' })}
+            {/* Distrito — combobox (autocomplete + dropdown) */}
+            <Controller
+              name="districtId"
+              control={control}
+              rules={{ required: 'Seleccione el distrito' }}
+              render={({ field }) => (
+                <Combobox
+                  label="Distrito"
+                  required
+                  options={districtOptions}
+                  value={field.value}
+                  onChange={(v) => field.onChange(v)}
+                  placeholder="Buscar distrito..."
+                  error={errors.districtId?.message}
+                />
+              )}
             />
             <Input
               label="Dirección"
@@ -301,7 +415,6 @@ export function IncidentForm() {
               type="number"
               step="any"
               placeholder="-12.046374"
-              error={errors.latitude?.message}
               {...register('latitude')}
             />
             <Input
@@ -309,7 +422,6 @@ export function IncidentForm() {
               type="number"
               step="any"
               placeholder="-77.042793"
-              error={errors.longitude?.message}
               {...register('longitude')}
             />
           </div>
@@ -319,7 +431,8 @@ export function IncidentForm() {
             <div className="mt-3 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
               <MapPin className="h-3.5 w-3.5 text-[#009850] flex-shrink-0" />
               <span>
-                Coordenadas: <strong className="text-gray-700">{Number(watch('latitude')).toFixed(6)}</strong>,{' '}
+                Coordenadas:{' '}
+                <strong className="text-gray-700">{Number(watch('latitude')).toFixed(6)}</strong>,{' '}
                 <strong className="text-gray-700">{Number(watch('longitude')).toFixed(6)}</strong>
               </span>
               <button
@@ -347,7 +460,7 @@ export function IncidentForm() {
               // Auto-select district: fuzzy match Nominatim name vs catalog
               if (loc.districtName && districts.length > 0) {
                 const normalize = (s: string) =>
-                  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
                 const needle = normalize(loc.districtName);
                 const match = districts.find((d) => {
                   const hay = normalize(d.name);

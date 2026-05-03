@@ -5,27 +5,29 @@ import {
   Edit,
   MapPin,
   ExternalLink,
-  Users,
   ImageIcon,
   Upload,
   Plus,
   Calendar,
   AlertTriangle,
   FileText,
+  ClipboardList,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { incidentService } from '../../services/incidentService';
-import type { Incident, AffectedPerson, Evidence, AffectedPersonFormData } from '../../types';
-import { IncidentStatusBadge } from '../../components/common/Badge';
+import { incidentReportService } from '../../services/incidentReportService';
+import type { Incident, AffectedPerson, AffectedFamily, Evidence, IncidentReport } from '../../types';
+import { IncidentStatusBadge, Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { Input } from '../../components/common/Input';
-import { Select } from '../../components/common/Select';
-import { Modal } from '../../components/common/Modal';
 import { PageSpinner } from '../../components/common/Spinner';
 import { usePermissions } from '../../hooks/usePermissions';
+import { GrdFlowStepper } from '../../components/common/GrdFlowStepper';
+import { MiniMap } from '../../components/common/MiniMap';
+import { AffectedSection } from '../../components/incidents/AffectedSection';
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -43,30 +45,38 @@ export function IncidentDetail() {
 
   const [incident, setIncident] = useState<Incident | null>(null);
   const [persons, setPersons] = useState<AffectedPerson[]>([]);
+  const [families, setFamilies] = useState<AffectedFamily[]>([]);
   const [evidences, setEvidences] = useState<Evidence[]>([]);
+  const [reports, setReports] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showPersonModal, setShowPersonModal] = useState(false);
   const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [copiedCoords, setCopiedCoords] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<AffectedPersonFormData>();
+  const handleCopyCoords = () => {
+    if (!incident?.latitude || !incident?.longitude) return;
+    const text = `${incident.latitude}, ${incident.longitude}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCoords(true);
+      setTimeout(() => setCopiedCoords(false), 2000);
+    });
+  };
 
   useEffect(() => {
     const load = async () => {
       if (!id) return;
       try {
-        const [inc, pers, evid] = await Promise.all([
+        const [inc, pers, fams, evid, reps] = await Promise.all([
           incidentService.getById(Number(id)),
           incidentService.getAffectedPersons(Number(id)).catch(() => []),
+          incidentService.getFamilies(Number(id)).catch(() => []),
           incidentService.getEvidences(Number(id)).catch(() => []),
+          incidentReportService.getByIncident(Number(id)).catch(() => []),
         ]);
         setIncident(inc);
         setPersons(pers);
+        setFamilies(fams);
         setEvidences(evid);
+        setReports(reps);
       } catch {
         toast.error('Error al cargar la incidencia');
         navigate('/incidents');
@@ -76,18 +86,6 @@ export function IncidentDetail() {
     };
     load();
   }, [id, navigate]);
-
-  const addPerson = async (data: AffectedPersonFormData) => {
-    try {
-      const person = await incidentService.addAffectedPerson(Number(id), data);
-      setPersons((prev) => [...prev, person]);
-      toast.success('Persona afectada registrada');
-      reset();
-      setShowPersonModal(false);
-    } catch {
-      toast.error('Error al registrar la persona');
-    }
-  };
 
   const handleEvidenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -173,6 +171,9 @@ export function IncidentDetail() {
         )}
       </div>
 
+      {/* ── Flujo de Atención GRD ── */}
+      <GrdFlowStepper status={incident.status} />
+
       {/* Main info */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
         <div className="px-5 py-4 flex items-center gap-2">
@@ -202,32 +203,65 @@ export function IncidentDetail() {
           <MapPin className="h-4 w-4 text-[#009850]" />
           <h2 className="font-semibold text-gray-800">Ubicación</h2>
         </div>
-        <div className="px-5 py-2">
-          <dl className="divide-y divide-gray-50">
-            <InfoRow label="Distrito" value={incident.district} />
-            <InfoRow label="Dirección" value={incident.address} />
-            {incident.latitude && incident.longitude && (
-              <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
-                <dt className="text-sm font-medium text-gray-500">Coordenadas GPS</dt>
-                <dd className="mt-1 sm:mt-0 sm:col-span-2 flex items-center gap-3">
-                  <span className="text-sm text-gray-900">
-                    {incident.latitude}, {incident.longitude}
-                  </span>
-                  {mapsUrl && (
-                    <a
-                      href={mapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+        <div className="px-5 py-4">
+          <div className={incident.latitude && incident.longitude ? 'flex gap-5' : ''}>
+            {/* Info rows */}
+            <dl className="flex-1 divide-y divide-gray-50">
+              <InfoRow label="Distrito" value={incident.district} />
+              <InfoRow label="Dirección" value={incident.address} />
+              {incident.latitude && incident.longitude && (
+                <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                  <dt className="text-sm font-medium text-gray-500">Coordenadas GPS</dt>
+                  <dd className="mt-1 sm:mt-0 sm:col-span-2 flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono text-gray-700">
+                      {incident.latitude}, {incident.longitude}
+                    </span>
+
+                    {/* Copy to clipboard — paste in Uber / taxi */}
+                    <button
+                      type="button"
+                      onClick={handleCopyCoords}
+                      title="Copiar coordenadas (para Uber, taxi, etc.)"
+                      className={[
+                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200',
+                        copiedCoords
+                          ? 'bg-[#009850]/10 text-[#009850]'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                      ].join(' ')}
                     >
-                      <ExternalLink className="h-3 w-3" />
-                      Ver en Google Maps
-                    </a>
-                  )}
-                </dd>
+                      {copiedCoords
+                        ? <><Check className="h-3 w-3" /> Copiado</>
+                        : <><Copy className="h-3 w-3" /> Copiar ubicación</>
+                      }
+                    </button>
+
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Ver en Google Maps
+                      </a>
+                    )}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            {/* Mini map — only when coordinates exist */}
+            {incident.latitude && incident.longitude && (
+              <div className="w-64 flex-shrink-0 self-stretch min-h-[160px]">
+                <MiniMap
+                  lat={incident.latitude}
+                  lng={incident.longitude}
+                  height={200}
+                />
               </div>
             )}
-          </dl>
+          </div>
         </div>
       </div>
 
@@ -253,57 +287,108 @@ export function IncidentDetail() {
         </div>
       </div>
 
-      {/* Affected persons */}
+      {/* Evaluation */}
+      {(incident.caseCode || incident.affectationLevel || incident.affectedFamilies || incident.socialRiskAssessment) && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">
+          <div className="px-5 py-4 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-[#009850]" />
+            <h2 className="font-semibold text-gray-800">Evaluación del Caso</h2>
+          </div>
+          <div className="px-5 py-2">
+            <dl className="divide-y divide-gray-50">
+              {incident.caseCode && <InfoRow label="Código de caso" value={incident.caseCode} />}
+              {incident.affectationLevel && (
+                <InfoRow
+                  label="Evaluación del caso preliminar"
+                  value={incident.affectationLevel === 'LEVE' ? 'Leve' : incident.affectationLevel === 'MODERADO' ? 'Moderado' : 'Severo'}
+                />
+              )}
+              {incident.affectedFamilies != null && <InfoRow label="Familias afectadas" value={String(incident.affectedFamilies)} />}
+              {incident.vulnerableGroups && <InfoRow label="Grupos vulnerables" value={incident.vulnerableGroups} />}
+              {incident.urgentNeeds && <InfoRow label="Necesidades urgentes" value={incident.urgentNeeds} />}
+              {incident.socialRiskAssessment && (
+                <InfoRow
+                  label="Riesgo social"
+                  value={incident.socialRiskAssessment === 'BAJO' ? 'Bajo' : incident.socialRiskAssessment === 'MEDIO' ? 'Medio' : incident.socialRiskAssessment === 'ALTO' ? 'Alto' : 'Crítico'}
+                />
+              )}
+              {incident.alertSource && <InfoRow label="Fuente de alerta" value={incident.alertSource} />}
+              {incident.articulatedInstitutions && <InfoRow label="Instituciones articuladas" value={incident.articulatedInstitutions} />}
+              {incident.reportDate && <InfoRow label="Fecha de reporte a Cáritas" value={incident.reportDate} />}
+            </dl>
+          </div>
+        </div>
+      )}
+
+      {/* Reports */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-[#009850]" />
+            <ClipboardList className="h-4 w-4 text-[#009850]" />
             <h2 className="font-semibold text-gray-800">
-              Personas Afectadas
-              <span className="ml-2 text-sm font-normal text-gray-500">({persons.length})</span>
+              Informes
+              <span className="ml-2 text-sm font-normal text-gray-500">({reports.length})</span>
             </h2>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            icon={<Plus className="h-4 w-4" />}
-            onClick={() => setShowPersonModal(true)}
-          >
-            Agregar
-          </Button>
+          {canEditIncident && (
+            <Button
+              size="sm"
+              variant="outline"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => navigate(`/incidents/${id}/reports/new`)}
+            >
+              Nuevo informe
+            </Button>
+          )}
         </div>
-        {persons.length === 0 ? (
+        {reports.length === 0 ? (
           <div className="px-5 py-8 text-center text-sm text-gray-400">
-            No hay personas afectadas registradas
+            No hay informes registrados aún
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Nombre', 'DNI', 'F. Nacimiento', 'Género', 'Teléfono', 'Tipo de Afectación'].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {persons.map((p) => (
-                  <tr key={p.id}>
-                    <td className="px-4 py-2 text-sm text-gray-800">{p.fullName}</td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{p.dni ?? '—'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{p.birthDate ? format(new Date(p.birthDate), 'dd/MM/yyyy') : '—'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{p.gender ?? '—'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{p.phone ?? '—'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{p.affectationType ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-gray-50">
+            {reports.map((r) => {
+              const reportTypeLabel: Record<string, string> = {
+                PRIMERA_VISITA: 'Primera Visita',
+                ENTREGA_DONACION: 'Entrega de Donación',
+                SEGUIMIENTO: 'Seguimiento',
+              };
+              const reportTypeVariant: Record<string, 'info' | 'success' | 'purple'> = {
+                PRIMERA_VISITA: 'info',
+                ENTREGA_DONACION: 'success',
+                SEGUIMIENTO: 'purple',
+              };
+              return (
+                <div key={r.id} className="px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => navigate(`/incidents/${id}/reports/${r.id}`)}>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={reportTypeVariant[r.reportType] ?? 'gray'}>
+                      {reportTypeLabel[r.reportType] ?? r.reportType}
+                    </Badge>
+                    {r.deliveryCode && (
+                      <span className="text-xs font-mono text-[#009850]">{r.deliveryCode}</span>
+                    )}
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {r.createdByName && `Por ${r.createdByName} — `}
+                      {format(new Date(r.createdAt), 'dd/MM/yyyy HH:mm')}
+                    </span>
+                  </div>
+                  {r.observations && (
+                    <p className="mt-1 text-sm text-gray-600 truncate">{r.observations}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Affected persons & families */}
+      <AffectedSection
+        incidentId={Number(id)}
+        initialPersons={persons}
+        initialFamilies={families}
+        canEdit={canEditIncident}
+      />
 
       {/* Evidence */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
@@ -368,79 +453,6 @@ export function IncidentDetail() {
         )}
       </div>
 
-      {/* Add person modal */}
-      <Modal
-        isOpen={showPersonModal}
-        onClose={() => { setShowPersonModal(false); reset(); }}
-        title="Agregar Persona Afectada"
-        size="lg"
-      >
-        <form onSubmit={handleSubmit(addPerson)} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nombre completo"
-              required
-              placeholder="Juan Pérez García"
-              error={errors.fullName?.message}
-              {...register('fullName', { required: 'El nombre es obligatorio' })}
-            />
-            <Input
-              label="DNI"
-              placeholder="12345678"
-              maxLength={8}
-              {...register('dni')}
-            />
-            <Input
-              label="Fecha de Nacimiento"
-              type="date"
-              {...register('birthDate')}
-            />
-            <Select
-              label="Género"
-              options={[
-                { value: 'M', label: 'Masculino' },
-                { value: 'F', label: 'Femenino' },
-                { value: 'OTRO', label: 'Otro' },
-              ]}
-              placeholder="Seleccionar"
-              {...register('gender')}
-            />
-            <Input
-              label="Teléfono"
-              placeholder="987654321"
-              {...register('phone')}
-            />
-            <Input
-              label="Tipo de afectación"
-              placeholder="Damnificado, afectado..."
-              {...register('affectationType')}
-            />
-          </div>
-          <Input
-            label="Dirección"
-            placeholder="Av. Lima 123, Lima"
-            {...register('address')}
-          />
-          <Input
-            label="Observaciones"
-            placeholder="Notas adicionales..."
-            {...register('observations')}
-          />
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={isSubmitting} fullWidth>
-              Registrar persona
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              fullWidth
-              onClick={() => { setShowPersonModal(false); reset(); }}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

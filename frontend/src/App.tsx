@@ -12,11 +12,14 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default:
 const IncidentList = lazy(() => import('./pages/incidents/IncidentList').then((m) => ({ default: m.IncidentList })));
 const IncidentDetail = lazy(() => import('./pages/incidents/IncidentDetail').then((m) => ({ default: m.IncidentDetail })));
 const IncidentForm = lazy(() => import('./pages/incidents/IncidentForm').then((m) => ({ default: m.IncidentForm })));
-const EnvironmentalList = lazy(() => import('./pages/environmental/EnvironmentalList').then((m) => ({ default: m.EnvironmentalList })));
-const EnvironmentalForm = lazy(() => import('./pages/environmental/EnvironmentalForm').then((m) => ({ default: m.EnvironmentalForm })));
+const IncidentReportForm = lazy(() => import('./pages/incidents/IncidentReportForm').then((m) => ({ default: m.IncidentReportForm })));
+const BrigadistaList = lazy(() => import('./pages/brigadistas/BrigadistaList').then((m) => ({ default: m.BrigadistaList })));
 const Reports = lazy(() => import('./pages/reports/Reports').then((m) => ({ default: m.Reports })));
 const Users = lazy(() => import('./pages/admin/Users').then((m) => ({ default: m.Users })));
 const Catalogs = lazy(() => import('./pages/admin/Catalogs').then((m) => ({ default: m.Catalogs })));
+const TrainingList = lazy(() => import('./pages/training/TrainingList').then((m) => ({ default: m.TrainingList })));
+const TrainingForm = lazy(() => import('./pages/training/TrainingForm').then((m) => ({ default: m.TrainingForm })));
+const TrainingDetail = lazy(() => import('./pages/training/TrainingDetail').then((m) => ({ default: m.TrainingDetail })));
 
 function App() {
   return (
@@ -34,6 +37,8 @@ function App() {
                 <Route path="/incidents" element={<IncidentList />} />
                 <Route path="/incidents/:id" element={<IncidentDetail />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/training" element={<TrainingList />} />
+                <Route path="/training/:id" element={<TrainingDetail />} />
               </Route>
             </Route>
 
@@ -42,9 +47,10 @@ function App() {
               <Route element={<Layout />}>
                 <Route path="/incidents/new" element={<IncidentForm />} />
                 <Route path="/incidents/:id/edit" element={<IncidentForm />} />
-                <Route path="/environmental" element={<EnvironmentalList />} />
-                <Route path="/environmental/new" element={<EnvironmentalForm />} />
-                <Route path="/environmental/:id" element={<EnvironmentalForm />} />
+                <Route path="/incidents/:id/reports/new" element={<IncidentReportForm />} />
+                <Route path="/brigadistas" element={<BrigadistaList />} />
+                <Route path="/training/new" element={<TrainingForm />} />
+                <Route path="/training/:id/edit" element={<TrainingForm />} />
               </Route>
             </Route>
 

@@ -16,7 +16,10 @@ const ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Administrador' },
   { value: 'GRD_SPECIALIST', label: 'Especialista GRD' },
   { value: 'BRIGADISTA', label: 'Brigadista' },
+  { value: 'COMITE_DONACIONES', label: 'Comité de Donaciones' },
   { value: 'AUTHORIZED_USER', label: 'Usuario Autorizado' },
+  { value: 'JEFA_OGP', label: 'Jefa OGP' },
+  { value: 'ALMACEN', label: 'Almacén' },
 ];
 
 export function Users() {

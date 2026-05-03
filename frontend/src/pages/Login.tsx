@@ -51,8 +51,7 @@ export function Login() {
     { email: 'admin@caritas.pe',        password: 'Admin123!',  role: 'Admin',        color: 'bg-purple-100 text-purple-700' },
     { email: 'especialista@caritas.pe', password: 'Spec123!',   role: 'Especialista', color: 'bg-blue-100 text-blue-700' },
     { email: 'prueba@caritas.org.pe',   password: 'prueba123',  role: 'Especialista', color: 'bg-blue-100 text-blue-700' },
-    { email: 'brigadista@caritas.pe',   password: 'Brig123!',   role: 'Brigadista',   color: 'bg-amber-100 text-amber-700' },
-    { email: 'autorizado@caritas.pe',   password: 'Auth123!',   role: 'Autorizado',   color: 'bg-gray-100 text-gray-600' },
+    { email: 'donaciones@caritas.pe',   password: 'Donac123!',  role: 'Donaciones',   color: 'bg-emerald-100 text-emerald-700' },
   ];
 
   const fillCredentials = (email: string, password: string) => {

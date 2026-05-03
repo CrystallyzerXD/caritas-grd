@@ -74,6 +74,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               <p className="text-xs font-semibold text-gray-800 leading-tight max-w-[140px] truncate">
                 {user?.fullName}
               </p>
+              {user?.role && <RoleBadge role={user.role} />}
             </div>
             <ChevronDown className="h-4 w-4 text-gray-500" />
           </button>

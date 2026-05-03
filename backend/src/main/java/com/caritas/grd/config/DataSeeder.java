@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class DataSeeder implements CommandLineRunner {
     private final EventTypeRepository eventTypeRepository;
     private final DistrictRepository districtRepository;
     private final ParishRepository parishRepository;
+    private final BrigadistaRepository brigadistaRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -28,6 +30,7 @@ public class DataSeeder implements CommandLineRunner {
         seedEventTypes();
         seedDistricts();
         seedAdminUser();
+        seedBrigadistas();
         log.info("Data seeding completed.");
     }
 
@@ -110,40 +113,101 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedAdminUser() {
-        if (!userRepository.existsByEmail("admin@caritas.pe")) {
-            User admin = User.builder()
-                    .fullName("Administrador Cáritas")
-                    .email("admin@caritas.pe")
-                    .password(passwordEncoder.encode("Admin123!"))
-                    .role(Role.ADMIN)
-                    .active(true)
-                    .build();
-            userRepository.save(admin);
-            log.info("Admin user created: admin@caritas.pe");
-        }
+        // Keep dev credentials deterministic even on existing databases.
+        upsertDevUser(
+                "admin@caritas.pe",
+                "Admin123!",
+                user -> {
+                    user.setFullName("Administrador Cáritas");
+                    user.setRole(Role.ADMIN);
+                }
+        );
 
-        if (!userRepository.existsByEmail("especialista@caritas.pe")) {
-            User specialist = User.builder()
-                    .fullName("Juan Pérez Especialista")
-                    .email("especialista@caritas.pe")
-                    .password(passwordEncoder.encode("Spec123!"))
-                    .role(Role.GRD_SPECIALIST)
-                    .active(true)
-                    .build();
-            userRepository.save(specialist);
-            log.info("GRD Specialist user created: especialista@caritas.pe");
-        }
+        upsertDevUser(
+                "especialista@caritas.pe",
+                "Spec123!",
+                user -> {
+                    user.setFullName("Juan Pérez Especialista");
+                    user.setRole(Role.GRD_SPECIALIST);
+                }
+        );
 
-        if (!userRepository.existsByEmail("prueba@caritas.org.pe")) {
-            User prueba = User.builder()
-                    .fullName("Usuario Prueba")
-                    .email("prueba@caritas.org.pe")
-                    .password(passwordEncoder.encode("prueba123"))
-                    .role(Role.GRD_SPECIALIST)
+        upsertDevUser(
+                "prueba@caritas.org.pe",
+                "prueba123",
+                user -> {
+                    user.setFullName("Usuario Prueba");
+                    user.setRole(Role.GRD_SPECIALIST);
+                }
+        );
+
+        upsertDevUser(
+                "donaciones@caritas.pe",
+                "Donac123!",
+                user -> {
+                    user.setFullName("Comité de Donaciones");
+                    user.setRole(Role.COMITE_DONACIONES);
+                }
+        );
+    }
+
+    private void upsertDevUser(String email, String plainPassword, Consumer<User> customizer) {
+        User user = userRepository.findByEmail(email).orElseGet(User::new);
+
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(plainPassword));
+        user.setActive(true);
+        customizer.accept(user);
+
+        userRepository.save(user);
+        log.info("Dev user synchronized: {}", email);
+    }
+
+    private void seedBrigadistas() {
+        if (brigadistaRepository.count() == 0) {
+            List<Parish> parishes = parishRepository.findAll();
+            Parish parish = parishes.isEmpty() ? null : parishes.get(0);
+
+            List<Brigadista> brigadistas = List.of(
+                Brigadista.builder()
+                    .fullName("María Rojas Huamán")
+                    .dni("45123678")
+                    .phone("987654321")
+                    .email("maria.rojas@caritas.pe")
+                    .parish(parish)
+                    .pastoralRole("Coordinadora de zona")
+                    .available(true)
+                    .latitude(-12.0464)
+                    .longitude(-77.0428)
                     .active(true)
-                    .build();
-            userRepository.save(prueba);
-            log.info("Test user created: prueba@caritas.org.pe");
+                    .build(),
+                Brigadista.builder()
+                    .fullName("Carlos Mendoza Quispe")
+                    .dni("47891234")
+                    .phone("956789012")
+                    .email("carlos.mendoza@caritas.pe")
+                    .parish(parish)
+                    .pastoralRole("Brigadista de campo")
+                    .available(true)
+                    .latitude(-12.0550)
+                    .longitude(-77.0515)
+                    .active(true)
+                    .build(),
+                Brigadista.builder()
+                    .fullName("Ana Torres Sánchez")
+                    .dni("43567891")
+                    .phone("923456789")
+                    .email("ana.torres@caritas.pe")
+                    .parish(parish)
+                    .pastoralRole("Brigadista de campo")
+                    .available(false)
+                    .latitude(-12.0612)
+                    .longitude(-77.0372)
+                    .active(true)
+                    .build()
+            );
+            brigadistaRepository.saveAll(brigadistas);
+            log.info("Brigadistas seeded: {} records", brigadistas.size());
         }
     }
 }

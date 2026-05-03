@@ -1,6 +1,7 @@
 package com.caritas.grd.dto.person;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -15,7 +16,8 @@ public class AffectedPersonCreateDto {
 
     private LocalDate birthDate;
 
-    @Size(min = 8, max = 8, message = "DNI must be 8 digits")
+    /** Vacío u opcional, o exactamente 8 dígitos (DNI peruano). */
+    @Pattern(regexp = "^$|^\\d{8}$", message = "El DNI debe tener 8 dígitos cuando se registra")
     private String dni;
 
     @Size(max = 15)

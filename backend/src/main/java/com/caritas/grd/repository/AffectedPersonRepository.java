@@ -14,6 +14,9 @@ public interface AffectedPersonRepository extends JpaRepository<AffectedPerson, 
 
     List<AffectedPerson> findByIncidentId(Long incidentId);
 
+    /** Standalone persons — no family assigned. */
+    List<AffectedPerson> findByIncidentIdAndFamilyIsNull(Long incidentId);
+
     Optional<AffectedPerson> findByIdAndIncidentId(Long id, Long incidentId);
 
     @Query("SELECT ap FROM AffectedPerson ap LEFT JOIN FETCH ap.incident i LEFT JOIN FETCH i.eventType LEFT JOIN FETCH i.district")

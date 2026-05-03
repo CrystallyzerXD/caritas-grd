@@ -3,11 +3,12 @@ import { flushSync } from 'react-dom';
 import {
   LayoutDashboard,
   AlertTriangle,
-  Leaf,
+  ShieldCheck,
   BarChart2,
   Users,
   BookOpen,
   ChevronLeft,
+  GraduationCap,
 } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../hooks/useAuth';
@@ -78,7 +79,7 @@ interface NavItem {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
-  const { isAdmin, isSpecialist, isBrigadista, canViewReports } = usePermissions();
+  const { isAdmin, isSpecialist, isBrigadista, canViewReports, canManageBrigadistas } = usePermissions();
   const { user } = useAuth();
 
   const navItems: NavItem[] = [
@@ -95,10 +96,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       show: true,
     },
     {
-      to: '/environmental',
-      label: 'Módulo Ambiente',
-      icon: <Leaf className="h-5 w-5 flex-shrink-0" />,
-      show: isSpecialist || isBrigadista,
+      to: '/training',
+      label: 'Capacitaciones',
+      icon: <GraduationCap className="h-5 w-5 flex-shrink-0" />,
+      show: true,
+    },
+    {
+      to: '/brigadistas',
+      label: 'Brigadistas',
+      icon: <ShieldCheck className="h-5 w-5 flex-shrink-0" />,
+      show: canManageBrigadistas || isBrigadista,
     },
     {
       to: '/reports',

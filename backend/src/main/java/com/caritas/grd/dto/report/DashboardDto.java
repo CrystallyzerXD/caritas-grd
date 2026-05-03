@@ -9,6 +9,7 @@ import java.util.Map;
 @Builder
 public class DashboardDto {
 
+    // GRD
     private Long totalIncidents;
     private Long openIncidents;
     private Long inProgressIncidents;
@@ -16,11 +17,17 @@ public class DashboardDto {
     private Long followUpIncidents;
     private Long totalAffectedPersons;
     private Long totalEvidences;
-    private Long totalEnvironmentalInitiatives;
-    private Long plannedInitiatives;
-    private Long inProgressInitiatives;
-    private Long completedInitiatives;
+
+    // Breakdown charts
     private Map<String, Long> incidentsByEventType;
     private Map<String, Long> incidentsByDistrict;
-    private Map<String, Long> initiativesByCategory;
+
+    // Capacitaciones
+    private Long totalTrainings;
+    private Long totalParticipants;
+    private Long certifiedParticipants;
+
+    // Brigadistas
+    private Long totalBrigadistas;
+    private Long activeBrigadistas;
 }

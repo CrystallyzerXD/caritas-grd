@@ -27,6 +27,11 @@ public class AffectedPerson {
     @JoinColumn(name = "incident_id", nullable = false)
     private Incident incident;
 
+    /** Null = standalone person (no family registered). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "family_id")
+    private AffectedFamily family;
+
     @Column(name = "full_name", nullable = false, length = 200)
     private String fullName;
 

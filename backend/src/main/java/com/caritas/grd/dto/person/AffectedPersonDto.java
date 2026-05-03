@@ -10,6 +10,7 @@ public class AffectedPersonDto {
 
     private Long id;
     private Long incidentId;
+    private Long familyId;   // null = standalone person
     private String fullName;
     private LocalDate birthDate;
     private String dni;

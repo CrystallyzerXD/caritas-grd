@@ -15,15 +15,14 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import {
-  AlertTriangle, CheckCircle, Clock, Leaf, Plus,
-  TrendingUp, TrendingDown, Users, ArrowRight, Pencil, Check,
+  AlertTriangle, CheckCircle, Clock, Plus,
+  TrendingUp, TrendingDown, Users, ShieldCheck, GraduationCap, ArrowRight, Pencil, Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { reportService } from '../services/reportService';
 import { incidentService } from '../services/incidentService';
-import { environmentalService } from '../services/environmentalService';
-import type { DashboardStats, Incident, Environmental } from '../types';
+import type { DashboardStats, Incident } from '../types';
 import { Button } from '../components/common/Button';
 import { PageSpinner } from '../components/common/Spinner';
 import { IncidentStatusBadge } from '../components/common/Badge';
@@ -38,12 +37,12 @@ const PIE_COLORS = ['#009850', '#f59e0b', '#10b981', '#6b7280'];
 const EMPTY_STATS: DashboardStats = {
   totalIncidents: 0, openIncidents: 0, inProgressIncidents: 0,
   closedIncidents: 0, followUpIncidents: 0, totalAffectedPersons: 0,
-  totalEvidences: 0, totalEnvironmentalInitiatives: 0, plannedInitiatives: 0,
-  inProgressInitiatives: 0, completedInitiatives: 0,
-  incidentsByEventType: {}, incidentsByDistrict: {}, initiativesByCategory: {},
+  totalEvidences: 0, totalTrainings: 0, totalParticipants: 0,
+  certifiedParticipants: 0, totalBrigadistas: 0, activeBrigadistas: 0,
+  incidentsByEventType: {}, incidentsByDistrict: {},
 };
 
-const WIDGET_IDS = ['stat-cards', 'charts', 'recent', 'env-summary'] as const;
+const WIDGET_IDS = ['stat-cards', 'charts', 'recent', 'brigadistas-summary'] as const;
 type WidgetId = typeof WIDGET_IDS[number];
 const LAYOUT_KEY = 'caritas-dashboard-layout';
 
@@ -172,7 +171,6 @@ function ChromaFilter() {
 export function Dashboard() {
   const [stats, setStats]         = useState<DashboardStats | null>(null);
   const [recentInc, setRecentInc] = useState<Incident[]>([]);
-  const [recentEnv, setRecentEnv] = useState<Environmental[]>([]);
   const [loading, setLoading]     = useState(true);
   const [editMode, setEditMode]     = useState(false);
   const [entering, setEntering]     = useState(false);
@@ -180,7 +178,7 @@ export function Dashboard() {
   const [dragging, setDragging]     = useState(false);
 
   const navigate = useNavigate();
-  const { canCreateIncident, canManageEnvironmental } = usePermissions();
+  const { canCreateIncident, canManageBrigadistas } = usePermissions();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -190,14 +188,12 @@ export function Dashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [data, incPage, envPage] = await Promise.all([
+        const [data, incPage] = await Promise.all([
           reportService.getDashboard(),
           incidentService.getAll({ page: 0, size: 4 }).catch(() => null),
-          environmentalService.getAll({ page: '0', size: '3' }).catch(() => null),
         ]);
         setStats(data);
         if (incPage) setRecentInc(incPage.content);
-        if (envPage) setRecentEnv(envPage.content);
       } catch {
         setStats(EMPTY_STATS);
         toast.error('No se pudo cargar el dashboard');
@@ -219,11 +215,11 @@ export function Dashboard() {
     { name: 'Seguimiento', value: stats.followUpIncidents   ?? 0 },
   ];
 
-  const openRate       = pct(stats.openIncidents,        stats.totalIncidents);
-  const closedRate     = pct(stats.closedIncidents,      stats.totalIncidents);
-  const completionRate = pct(stats.completedInitiatives, stats.totalEnvironmentalInitiatives);
-  const avgAffected    = stats.totalIncidents
+  const openRate    = pct(stats.openIncidents,   stats.totalIncidents);
+  const closedRate  = pct(stats.closedIncidents, stats.totalIncidents);
+  const avgAffected = stats.totalIncidents
     ? Math.round(stats.totalAffectedPersons / stats.totalIncidents) : 0;
+  const brigadistaActiveRate = pct(stats.activeBrigadistas, stats.totalBrigadistas);
 
   /* ── Widget content map ── */
   const widgets: Record<WidgetId, React.ReactNode> = {
@@ -288,8 +284,8 @@ export function Dashboard() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-800">Actividades Recientes</h2>
-            <p className="text-xs text-gray-500">Últimas incidencias e iniciativas registradas</p>
+            <h2 className="font-semibold text-gray-800">Incidencias Recientes</h2>
+            <p className="text-xs text-gray-500">Últimas incidencias registradas</p>
           </div>
         </div>
         <div className="divide-y divide-gray-50">
@@ -312,23 +308,7 @@ export function Dashboard() {
               </div>
             </div>
           ))}
-          {recentEnv.map((env) => (
-            <div key={`env-${env.id}`}
-              className="px-5 py-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition-colors"
-              onClick={() => !editMode && navigate(`/environmental/${env.id}`)}>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 flex-shrink-0 w-16 justify-center">Ambiental</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{env.title}</p>
-                <p className="text-xs text-gray-400 truncate">{env.responsible ?? env.district}</p>
-              </div>
-              {env.startDate && (
-                <span className="text-xs text-gray-400 hidden sm:block flex-shrink-0">
-                  {format(new Date(env.startDate), 'd MMM yyyy', { locale: es })}
-                </span>
-              )}
-            </div>
-          ))}
-          {recentInc.length === 0 && recentEnv.length === 0 && (
+          {recentInc.length === 0 && (
             <p className="px-5 py-8 text-center text-sm text-gray-400">No hay actividades recientes</p>
           )}
         </div>
@@ -337,36 +317,45 @@ export function Dashboard() {
             className="text-xs text-[#009850] hover:underline flex items-center gap-1">
             Ver todas las incidencias <ArrowRight className="h-3 w-3" />
           </button>
-          <button onClick={() => navigate('/environmental')}
+          <button onClick={() => navigate('/training')}
             className="text-xs text-[#009850] hover:underline flex items-center gap-1">
-            Ver todas las iniciativas <ArrowRight className="h-3 w-3" />
+            Ver capacitaciones <ArrowRight className="h-3 w-3" />
           </button>
         </div>
       </div>
     ),
 
-    'env-summary': (
+    'brigadistas-summary': (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-            <Leaf className="h-5 w-5 text-emerald-600" />
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-[#009850] transition-colors"
+          onClick={() => !editMode && navigate('/brigadistas')}>
+          <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="h-5 w-5 text-[#009850]" />
           </div>
           <div>
-            <AnimatedNumber value={stats.totalEnvironmentalInitiatives ?? 0} className="text-2xl font-bold text-gray-900" />
-            <p className="text-xs text-gray-500 mt-0.5">Iniciativas ambientales</p>
+            <AnimatedNumber value={stats.totalBrigadistas ?? 0} className="text-2xl font-bold text-gray-900" />
+            <p className="text-xs text-gray-500 mt-0.5">Brigadistas parroquiales</p>
           </div>
           <span className="ml-auto text-xs font-semibold text-green-600 flex items-center gap-0.5">
-            <TrendingUp className="h-3 w-3" />{completionRate}%
+            <TrendingUp className="h-3 w-3" />{brigadistaActiveRate}%
           </span>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center">
-          <AnimatedNumber value={stats.completedInitiatives ?? 0} className="text-2xl font-bold text-[#009850]" />
-          <p className="text-xs text-gray-500 mt-1">Completadas</p>
+          <AnimatedNumber value={stats.activeBrigadistas ?? 0} className="text-2xl font-bold text-[#009850]" />
+          <p className="text-xs text-gray-500 mt-1">Disponibles</p>
         </div>
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-amber-400 transition-colors"
-          onClick={() => !editMode && navigate('/incidents')}>
-          <AnimatedNumber value={stats.followUpIncidents ?? 0} className="text-2xl font-bold text-amber-500" />
-          <p className="text-xs text-gray-500 mt-1">Incidencias en seguimiento</p>
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-400 transition-colors"
+          onClick={() => !editMode && navigate('/training')}>
+          <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <GraduationCap className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <AnimatedNumber value={stats.totalTrainings ?? 0} className="text-2xl font-bold text-gray-900" />
+            <p className="text-xs text-gray-500 mt-0.5">Capacitaciones</p>
+          </div>
+          <span className="ml-auto text-xs font-semibold text-blue-600 flex items-center gap-0.5">
+            <TrendingUp className="h-3 w-3" />{stats.certifiedParticipants ?? 0}
+          </span>
         </div>
       </div>
     ),
@@ -408,9 +397,9 @@ export function Dashboard() {
               Registrar Incidente
             </Button>
           )}
-          {canManageEnvironmental && !editMode && (
-            <Button variant="outline" icon={<Leaf className="h-4 w-4" />} onClick={() => navigate('/environmental/new')} size="sm">
-              Nueva Iniciativa
+          {canManageBrigadistas && !editMode && (
+            <Button variant="outline" icon={<ShieldCheck className="h-4 w-4" />} onClick={() => navigate('/brigadistas')} size="sm">
+              Brigadistas
             </Button>
           )}
 

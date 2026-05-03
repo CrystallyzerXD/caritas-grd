@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import type { User, LoginRequest } from '../types';
 import { authService } from '../services/authService';
+import { UNAUTHORIZED_EVENT } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(storedUser);
     }
     setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+    };
+
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
   }, []);
 
   const login = useCallback(async (credentials: LoginRequest) => {

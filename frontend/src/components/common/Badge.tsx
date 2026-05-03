@@ -1,5 +1,5 @@
 import React from 'react';
-import type { IncidentStatus, EnvironmentalStatus, UserRole } from '../../types';
+import type { IncidentStatus, UserRole } from '../../types';
 
 type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'gray' | 'purple' | 'cian' | 'lima' | 'naranja' | 'amarillo';
 
@@ -40,22 +40,15 @@ export function Badge({ children, variant = 'gray', className = '' }: BadgeProps
 // Incident status badge
 export function IncidentStatusBadge({ status }: { status: IncidentStatus }) {
   const map: Record<IncidentStatus, { label: string; variant: BadgeVariant }> = {
-    OPEN:        { label: 'Abierto',     variant: 'cian'     },
-    IN_PROGRESS: { label: 'En Proceso',  variant: 'naranja'  },
-    CLOSED:      { label: 'Cerrado',     variant: 'lima'     },
-    FOLLOW_UP:   { label: 'Seguimiento', variant: 'amarillo' },
-  };
-  const { label, variant } = map[status] ?? { label: status, variant: 'gray' };
-  return <Badge variant={variant}>{label}</Badge>;
-}
-
-// Environmental status badge
-export function EnvironmentalStatusBadge({ status }: { status: EnvironmentalStatus }) {
-  const map: Record<EnvironmentalStatus, { label: string; variant: BadgeVariant }> = {
-    PLANNED: { label: 'Planificado', variant: 'info' },
-    IN_PROGRESS: { label: 'En Ejecucion', variant: 'warning' },
-    COMPLETED: { label: 'Completado', variant: 'success' },
-    CANCELLED: { label: 'Cancelado', variant: 'danger'  },
+    OPEN:           { label: 'Abierto',        variant: 'cian'     },
+    IN_PROGRESS:    { label: 'En Proceso',     variant: 'naranja'  },
+    CLOSED:         { label: 'Cerrado',        variant: 'lima'     },
+    FOLLOW_UP:      { label: 'Seguimiento',    variant: 'amarillo' },
+    EN_EVALUACION:  { label: 'En Evaluación',  variant: 'info'     },
+    APROBADO:       { label: 'Aprobado',       variant: 'success'  },
+    ATENDIDO:       { label: 'Atendido',       variant: 'lima'     },
+    EN_SEGUIMIENTO: { label: 'En Seguimiento', variant: 'purple'   },
+    CERRADO:        { label: 'Cerrado',        variant: 'gray'     },
   };
   const { label, variant } = map[status] ?? { label: status, variant: 'gray' };
   return <Badge variant={variant}>{label}</Badge>;
@@ -64,10 +57,13 @@ export function EnvironmentalStatusBadge({ status }: { status: EnvironmentalStat
 // Role badge
 export function RoleBadge({ role }: { role: UserRole }) {
   const map: Record<UserRole, { label: string; variant: BadgeVariant }> = {
-    ADMIN: { label: 'Administrador', variant: 'danger' },
-    GRD_SPECIALIST: { label: 'Especialista GRD', variant: 'purple' },
-    BRIGADISTA: { label: 'Brigadista', variant: 'warning' },
-    AUTHORIZED_USER: { label: 'Usuario Autorizado', variant: 'info' },
+    ADMIN:             { label: 'Administrador',      variant: 'danger'  },
+    GRD_SPECIALIST:    { label: 'Especialista GRD',   variant: 'purple'  },
+    BRIGADISTA:        { label: 'Brigadista',         variant: 'warning' },
+    COMITE_DONACIONES: { label: 'Comité Donaciones',  variant: 'cian'    },
+    AUTHORIZED_USER:   { label: 'Usuario Autorizado', variant: 'info'    },
+    JEFA_OGP:          { label: 'Jefa OGP',           variant: 'cian'    },
+    ALMACEN:           { label: 'Almacén',            variant: 'gray'    },
   };
   const { label, variant } = map[role] ?? { label: role, variant: 'gray' };
   return <Badge variant={variant}>{label}</Badge>;

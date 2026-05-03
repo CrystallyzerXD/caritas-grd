@@ -1,6 +1,8 @@
 package com.caritas.grd.dto.incident;
 
+import com.caritas.grd.model.AffectationLevel;
 import com.caritas.grd.model.IncidentStatus;
+import com.caritas.grd.model.SocialRiskLevel;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -31,4 +33,14 @@ public class IncidentDto {
     private Integer evidenceCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String caseCode;
+    private LocalDate reportDate;
+    private String alertSource;
+    private AffectationLevel affectationLevel;
+    private Integer affectedFamilies;
+    private String vulnerableGroups;
+    private String urgentNeeds;
+    private SocialRiskLevel socialRiskAssessment;
+    private String articulatedInstitutions;
+    private Integer reportCount;
 }

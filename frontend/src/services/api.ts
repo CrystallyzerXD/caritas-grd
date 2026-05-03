@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = 'http://localhost:8081';
+export const UNAUTHORIZED_EVENT = 'auth:unauthorized';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -25,10 +26,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = String(error.config?.url ?? '');
+    const isLoginRequest = requestUrl.includes('/api/auth/login');
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     }
     return Promise.reject(error);
   }
